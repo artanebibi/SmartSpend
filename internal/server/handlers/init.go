@@ -1,15 +1,17 @@
 package handlers
 
 import (
-	"SmartSpend/internal/database"
+	db "SmartSpend/internal/database" // Add an alias to avoid conflict
+	"SmartSpend/internal/repository"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
 
 type Server struct {
-	Port int
-	Db   database.Service
+	Port     int
+	Db       db.Service // Use the alias here
+	UserRepo repository.IUserRepository
 }
 
 func (s *Server) RegisterRoutes() http.Handler {
@@ -25,6 +27,11 @@ func (s *Server) RegisterRoutes() http.Handler {
 	r.GET("/health", s.healthHandler)
 
 	r.GET("/websocket", s.websocketHandler)
+
+	signInBasePath := "/api/auth/signin"
+
+	r.POST(signInBasePath+"/google", s.GoogleSignIn)
+	r.POST(signInBasePath+"/apple", s.AppleSignIn)
 
 	return r
 }

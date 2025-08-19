@@ -2,30 +2,33 @@ package server
 
 import (
 	"SmartSpend/internal/database"
+	"SmartSpend/internal/repository"
 	"SmartSpend/internal/server/handlers"
 	"fmt"
 	_ "github.com/joho/godotenv/autoload"
 	"net/http"
 	"os"
 	"strconv"
-	"time"
 )
 
 func NewServer() *http.Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
-	NewServer := &handlers.Server{
-		Port: port,
-		Db:   database.New(),
+
+	dbService := database.New() // This is of type database.Service
+	database.RunMigrations(dbService.DB())
+
+	userRepo := repository.NewUserRepository(dbService) // Pass the service
+
+	serverHandler := &handlers.Server{
+		Port:     port,
+		Db:       dbService, // The database service
+		UserRepo: userRepo,
 	}
 
-	// Declare Server config
-	server := &http.Server{
-		Addr:         fmt.Sprintf(":%d", NewServer.Port),
-		Handler:      NewServer.RegisterRoutes(),
-		IdleTimeout:  time.Minute,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 30 * time.Second,
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: serverHandler.RegisterRoutes(),
 	}
 
-	return server
+	return srv
 }
