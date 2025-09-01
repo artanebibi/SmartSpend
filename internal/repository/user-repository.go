@@ -5,17 +5,19 @@ import (
 	"SmartSpend/internal/domain/model"
 	"database/sql"
 	"fmt"
-	"github.com/google/uuid"
 	"log"
+
+	"github.com/google/uuid"
 )
 
 type IUserRepository interface {
 	FindAll() []model.User
 	FindById(id uuid.UUID) (*model.User, error)
-	//FindByEmail(email string) *model.User
+	FindByGoogleEmail(email string) *model.User
+	FindByAppleEmail(email string) *model.User
 	Save(user model.User) error
-	//Update(user model.User)
-	//Delete(user model.User)
+	Update(user model.User) error
+	Delete(id uuid.UUID) error
 }
 
 type databaseUserRepository struct {
@@ -29,7 +31,7 @@ func NewUserRepository(s database.Service) IUserRepository {
 }
 
 func (d *databaseUserRepository) FindAll() []model.User {
-	rows, err := d.db.Query("SELECT id, first_name, last_name, google_email FROM \"user\"")
+	rows, err := d.db.Query("SELECT id, first_name, last_name, google_email FROM users")
 	if err != nil {
 		log.Println(err)
 		return nil
@@ -50,7 +52,7 @@ func (d *databaseUserRepository) FindAll() []model.User {
 
 func (d *databaseUserRepository) FindById(id uuid.UUID) (*model.User, error) {
 	row := d.db.QueryRow(
-		"SELECT id, first_name, last_name, username, google_email, apple_email, refresh_token, refresh_token_expiry_date, avatar_url, created_at, balance, monthly_saving_goal FROM \"user\" WHERE id = $1",
+		"SELECT * FROM users WHERE id = $1",
 		id,
 	)
 
@@ -68,6 +70,7 @@ func (d *databaseUserRepository) FindById(id uuid.UUID) (*model.User, error) {
 		&user.CreatedAt,
 		&user.Balance,
 		&user.MonthlySavingGoal,
+		&user.PreferredCurrency,
 	)
 
 	if err != nil {
@@ -80,11 +83,122 @@ func (d *databaseUserRepository) FindById(id uuid.UUID) (*model.User, error) {
 	return &user, nil
 }
 
+func (d *databaseUserRepository) FindByGoogleEmail(email string) *model.User {
+	row := d.db.QueryRow(
+		"SELECT * FROM users WHERE google_email = $1",
+		email,
+	)
+
+	var user model.User
+	err := row.Scan(
+		&user.ID,
+		&user.FirstName,
+		&user.LastName,
+		&user.Username,
+		&user.GoogleEmail,
+		&user.AppleEmail,
+		&user.RefreshToken,
+		&user.RefreshTokenExpiryDate,
+		&user.AvatarURL,
+		&user.CreatedAt,
+		&user.Balance,
+		&user.MonthlySavingGoal,
+		&user.PreferredCurrency,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			log.Printf("user with google_email=%s not found", email)
+			return nil
+		}
+		log.Printf("failed to scan user by email: %v", err)
+		return nil
+	}
+
+	return &user
+}
+
+func (d *databaseUserRepository) FindByAppleEmail(email string) *model.User {
+	row := d.db.QueryRow(
+		"SELECT * FROM users WHERE apple_email = $1",
+		email,
+	)
+
+	var user model.User
+	err := row.Scan(
+		&user.ID,
+		&user.FirstName,
+		&user.LastName,
+		&user.Username,
+		&user.GoogleEmail,
+		&user.AppleEmail,
+		&user.RefreshToken,
+		&user.RefreshTokenExpiryDate,
+		&user.AvatarURL,
+		&user.CreatedAt,
+		&user.Balance,
+		&user.MonthlySavingGoal,
+		&user.PreferredCurrency,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			log.Printf("user with google_email=%s not found", email)
+			return nil
+		}
+		log.Printf("failed to scan user by email: %v", err)
+		return nil
+	}
+
+	return &user
+}
+
 func (d *databaseUserRepository) Save(user model.User) error {
 	log.Println("Saving user:", user.FirstName)
 	_, err := d.db.Exec(
-		"INSERT INTO \"User\" (id,first_name,last_name,username, google_email,apple_email,refresh_token,refresh_token_expiry_date,avatar_url,created_at,balance,monthly_saving_goal) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
-		user.ID, user.FirstName, user.LastName, user.Username, user.GoogleEmail, user.AppleEmail, user.RefreshToken, user.RefreshTokenExpiryDate, user.AvatarURL, user.CreatedAt, user.Balance, user.MonthlySavingGoal,
+		"INSERT INTO users (id,first_name,last_name,username, google_email,apple_email,refresh_token,refresh_token_expiry_date,avatar_url,created_at,balance,monthly_saving_goal,preferred_currency) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)",
+		user.ID, user.FirstName, user.LastName, user.Username, user.GoogleEmail, user.AppleEmail, user.RefreshToken, user.RefreshTokenExpiryDate, user.AvatarURL, user.CreatedAt, user.Balance, user.MonthlySavingGoal, user.PreferredCurrency,
 	)
 	return err
+}
+
+func (d *databaseUserRepository) Update(user model.User) error {
+	_, err := d.db.Exec(
+		`
+		UPDATE users
+		
+		 SET first_name = $1,
+		     last_name = $2,
+		     username = $3,
+		     google_email = $4,
+		     apple_email = $5,
+		     refresh_token = $6,
+		     refresh_token_expiry_date = $7,
+		     avatar_url = $8,
+		     balance = $9,
+		     monthly_saving_goal = $10,
+		     preferred_currency = $12
+		
+	    WHERE id = $11`,
+		user.FirstName,
+		user.LastName,
+		user.Username,
+		user.GoogleEmail,
+		user.AppleEmail,
+		user.RefreshToken,
+		user.RefreshTokenExpiryDate,
+		user.AvatarURL,
+		user.Balance,
+		user.MonthlySavingGoal,
+		user.ID,
+		user.PreferredCurrency,
+	)
+	if err != nil {
+		log.Printf("failed to update user %s: %v", user.ID, err)
+		return err
+	}
+	return nil
+}
+
+func (d *databaseUserRepository) Delete(id uuid.UUID) error {
+	d.db.Exec("DELETE FROM users WHERE id = $1", id)
+	return nil
 }

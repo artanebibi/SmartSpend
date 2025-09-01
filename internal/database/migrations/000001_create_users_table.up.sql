@@ -2,7 +2,7 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 
-CREATE TABLE "User" (
+CREATE TABLE users (
                         id UUID PRIMARY KEY NOT NULL,
                         first_name VARCHAR(100) NOT NULL,
                         last_name VARCHAR(100) NOT NULL,
@@ -15,6 +15,7 @@ CREATE TABLE "User" (
                         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                         balance NUMERIC(15, 2) NOT NULL DEFAULT 0.00,
                         monthly_saving_goal NUMERIC(15, 2) NOT NULL DEFAULT 0.00,
+                        preferred_currency CHAR(3) DEFAULT 'MKD',
 
                         CONSTRAINT at_least_an_email_to_be_present CHECK (
                             google_email IS NOT NULL OR
@@ -23,16 +24,14 @@ CREATE TABLE "User" (
 );
 
 CREATE UNIQUE INDEX idx_unique_user_email
-    ON "User"(COALESCE(google_email, apple_email))
+    ON users(COALESCE(google_email, apple_email))
     WHERE google_email IS NOT NULL OR apple_email IS NOT NULL;
 
 CREATE INDEX idx_users_emails_partial
-    ON "User"(COALESCE(google_email, apple_email))
+    ON users(COALESCE(google_email, apple_email))
     WHERE google_email IS NOT NULL OR apple_email IS NOT NULL;
 
 CREATE INDEX idx_users_refresh_token
-    ON "User"(refresh_token)
+    ON users(refresh_token)
     WHERE refresh_token IS NOT NULL;
 
-CREATE INDEX idx_users_created_at
-    ON "User"(created_at);

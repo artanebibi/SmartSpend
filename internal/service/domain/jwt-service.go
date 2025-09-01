@@ -1,11 +1,12 @@
-package service
+package domain
 
 import (
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
-	"github.com/google/uuid"
 	"os"
 	"time"
+
+	"github.com/dgrijalva/jwt-go"
+	"github.com/google/uuid"
 )
 
 var ()
@@ -13,10 +14,11 @@ var ()
 type IJWTService interface {
 	GenerateAccessToken(userId uuid.UUID) string
 	ValidateAccessToken(tokenString string) (*jwt.Token, error)
+	ExtractClaims(tokenString string) (uuid.UUID, error)
 }
 
 type JWTCustomClaims struct {
-	UserID uuid.UUID
+	UserID uuid.UUID `json:"UserID"`
 	jwt.StandardClaims
 }
 
@@ -28,7 +30,7 @@ type JwtService struct {
 func NewJWTService() IJWTService {
 	return &JwtService{
 		secretKey: os.Getenv("ACCESS_TOKEN_SECRET_KEY"),
-		issuer:    "Smart Spend @ All rights reserved",
+		issuer:    "Smart Spend Team",
 	}
 }
 
@@ -57,4 +59,17 @@ func (jwtSrv *JwtService) ValidateAccessToken(tokenString string) (*jwt.Token, e
 		}
 		return []byte(jwtSrv.secretKey), nil
 	})
+}
+
+func (jwtSrv *JwtService) ExtractClaims(tokenString string) (uuid.UUID, error) {
+	token, _, err := new(jwt.Parser).ParseUnverified(tokenString, &JWTCustomClaims{})
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	if claims, ok := token.Claims.(*JWTCustomClaims); ok {
+		return claims.UserID, nil
+	}
+
+	return uuid.Nil, fmt.Errorf("invalid token claims")
 }

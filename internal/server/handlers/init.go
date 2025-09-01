@@ -1,11 +1,24 @@
 package handlers
 
 import (
-	db "SmartSpend/internal/database" // Add an alias to avoid conflict
+	db "SmartSpend/internal/database"
 	"SmartSpend/internal/repository"
+	"SmartSpend/internal/server/middleware"
+	"SmartSpend/internal/service/application"
+	"SmartSpend/internal/service/domain"
+	"net/http"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"net/http"
+)
+
+var (
+	database               db.Service                  = db.New()
+	userRepository         repository.IUserRepository  = repository.NewUserRepository(database)
+	userService            domain.IUserService         = domain.NewUserService(userRepository)
+	applicationUserService application.IUserAppService = application.NewUserAppService(userService)
+	jwtService             domain.IJWTService          = domain.NewJWTService()
+	tokenService           domain.ITokenService        = domain.NewTokenService()
 )
 
 type Server struct {
@@ -23,15 +36,35 @@ func (s *Server) RegisterRoutes() http.Handler {
 		AllowHeaders:     []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true, // Enable cookies/auth
 	}))
+	authBasePath := "/api/auth"
+	userBasePath := "/api/user"
+	tokenBasePath := "/api/token"
 
 	r.GET("/health", s.healthHandler)
 
 	r.GET("/websocket", s.websocketHandler)
 
-	signInBasePath := "/api/auth/signin"
+	signIn := r.Group(authBasePath)
+	{
+		signIn.POST("/google", s.GoogleAuth)
+		signIn.POST("/apple", s.AppleSignIn)
+	}
 
-	r.POST(signInBasePath+"/google", s.GoogleSignIn)
-	r.POST(signInBasePath+"/apple", s.AppleSignIn)
+	logOut := r.Group(authBasePath, middleware.AuthMiddleware())
+	{
+		logOut.POST("/logout", s.Logout)
+	}
 
+	token := r.Group(tokenBasePath)
+	{
+		token.POST("/", s.RotateAccessToken)
+	}
+
+	user := r.Group(userBasePath, middleware.AuthMiddleware())
+	{
+		user.GET("/me", s.GetUserData)
+		user.GET("/balances", s.GetUserBalances)
+		user.PATCH("/update", s.UpdateUserInformation)
+	}
 	return r
 }

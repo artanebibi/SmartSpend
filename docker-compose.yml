@@ -17,11 +17,11 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_SCHEMA: ${DB_SCHEMA}
     depends_on:
-      database:
+      postgres:
         condition: service_healthy
     networks:
       - SmartSpend
-  database:
+  postgres:
     image: postgres:latest
     restart: unless-stopped
     environment:
