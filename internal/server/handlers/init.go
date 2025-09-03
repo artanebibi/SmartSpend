@@ -13,12 +13,15 @@ import (
 )
 
 var (
-	database               db.Service                  = db.New()
-	userRepository         repository.IUserRepository  = repository.NewUserRepository(database)
-	userService            domain.IUserService         = domain.NewUserService(userRepository)
-	applicationUserService application.IUserAppService = application.NewUserAppService(userService)
-	jwtService             domain.IJWTService          = domain.NewJWTService()
-	tokenService           domain.ITokenService        = domain.NewTokenService()
+	database                      db.Service                                 = db.New()
+	userRepository                repository.IUserRepository                 = repository.NewUserRepository(database)
+	userService                   domain.IUserService                        = domain.NewUserService(userRepository)
+	applicationUserService        application.IUserAppService                = application.NewUserAppService(userService)
+	jwtService                    domain.IJWTService                         = domain.NewJWTService()
+	tokenService                  domain.ITokenService                       = domain.NewTokenService()
+	transactionRepository         repository.ITransactionRepository          = repository.NewTransactionRepository(database)
+	transactionService            domain.ITransactionService                 = domain.NewTransactionService(transactionRepository)
+	applicationTransactionService application.IApplicationTransactionService = application.NewApplicationTransactionService(transactionRepository)
 )
 
 type Server struct {
@@ -39,6 +42,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	authBasePath := "/api/auth"
 	userBasePath := "/api/user"
 	tokenBasePath := "/api/token"
+	transactionBasePath := "/api/transaction"
 
 	r.GET("/health", s.healthHandler)
 
@@ -65,6 +69,15 @@ func (s *Server) RegisterRoutes() http.Handler {
 		user.GET("/me", s.GetUserData)
 		user.GET("/balances", s.GetUserBalances)
 		user.PATCH("/update", s.UpdateUserInformation)
+	}
+
+	transaction := r.Group(transactionBasePath, middleware.AuthMiddleware())
+	{
+		transaction.GET("", s.GetAllTransactions)
+		transaction.GET("/:id", s.GetTransactionByID)
+		transaction.POST("", s.SaveTransaction)
+		transaction.PATCH("/:id", s.UpdateTransaction)
+		transaction.DELETE("/:id", s.DeleteTransaction)
 	}
 	return r
 }

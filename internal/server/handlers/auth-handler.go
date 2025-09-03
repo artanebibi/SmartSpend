@@ -100,7 +100,7 @@ func (s *Server) GoogleAuth(c *gin.Context) {
 			"refresh_token":             newUser.RefreshToken,
 			"refresh_token_expiry_date": newUser.RefreshTokenExpiryDate,
 			"access_token":              tokenService.GenerateAccessToken(newUser.ID),
-			"user_data":                 userDto,
+			"data":                      userDto,
 		})
 		return
 	}
@@ -116,7 +116,7 @@ func (s *Server) GoogleAuth(c *gin.Context) {
 			"refresh_token":             existingUser.RefreshToken,
 			"refresh_token_expiry_date": existingUser.RefreshTokenExpiryDate,
 			"access_token":              tokenService.GenerateAccessToken(existingUser.ID),
-			"user_data":                 userDto,
+			"data":                      userDto,
 		})
 		return
 	}
@@ -326,7 +326,7 @@ func (s *Server) AppleSignIn(c *gin.Context) {
 
 	claims, err := ValidateAppleIDToken(req.IDToken)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Apple ID token"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
