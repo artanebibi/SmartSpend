@@ -2,7 +2,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: core-api/Dockerfile
       target: prod
     restart: unless-stopped
     ports:
@@ -16,9 +16,12 @@ services:
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_SCHEMA: ${DB_SCHEMA}
+      OCR_URL: ${OCR_URL}
     depends_on:
       postgres:
         condition: service_healthy
+      ocr-service:
+        condition: service_started
     networks:
       - SmartSpend
   postgres:
@@ -38,6 +41,15 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+    networks:
+      - SmartSpend
+  ocr-service:
+    build:
+      context: ./ocr-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
     networks:
       - SmartSpend
 
