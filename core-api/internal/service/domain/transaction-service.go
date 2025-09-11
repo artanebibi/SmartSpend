@@ -3,10 +3,11 @@ package domain
 import (
 	"SmartSpend/internal/domain/model"
 	"SmartSpend/internal/repository"
+	"time"
 )
 
 type ITransactionService interface {
-	FindAll(userId string) []model.Transaction
+	FindAll(userId string, from time.Time, to time.Time) []model.Transaction
 	FindById(Id int64, userId string) (*model.Transaction, error)
 	Save(transaction *model.Transaction) error
 	Delete(transactionId int64, userId string) error
@@ -22,8 +23,8 @@ func NewTransactionService(repo repository.ITransactionRepository) *TransactionS
 	}
 }
 
-func (t *TransactionService) FindAll(userId string) []model.Transaction {
-	return t.transactionRepository.FindAll(userId)
+func (t *TransactionService) FindAll(userId string, from time.Time, to time.Time) []model.Transaction {
+	return t.transactionRepository.FindAll(userId, from, to)
 }
 func (t *TransactionService) FindById(id int64, userId string) (*model.Transaction, error) {
 	return t.transactionRepository.FindById(id, userId)

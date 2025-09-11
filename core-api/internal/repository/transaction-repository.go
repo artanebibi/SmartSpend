@@ -8,10 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
 )
 
 type ITransactionRepository interface {
-	FindAll(userId string) []model.Transaction
+	FindAll(userId string, from time.Time, to time.Time) []model.Transaction
 	FindById(id int64, userId string) (*model.Transaction, error)
 	Save(transaction model.Transaction) error
 	Update(transaction model.Transaction, id int64) error
@@ -165,10 +166,17 @@ func NewTransactionRepository(s database.Service) ITransactionRepository {
 	}
 }
 
-func (d *databaseTransactionRepository) FindAll(userId string) []model.Transaction {
-	rows, err := d.db.Query(`SELECT * FROM transactions WHERE owner_id = $1`, userId)
+func (d *databaseTransactionRepository) FindAll(userId string, from time.Time, to time.Time) []model.Transaction {
+	rows, err := d.db.Query(`
+		SELECT id, title, price, date_made, owner_id, category_id, "type"
+		FROM transactions
+		WHERE owner_id = $1
+		  AND date_made >= $2
+		  AND date_made <= $3
+		ORDER BY date_made ASC
+	`, userId, from, to)
+
 	if err != nil {
-		log.Println(err)
 		return nil
 	}
 	defer rows.Close()

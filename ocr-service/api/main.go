@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
-	"testOCR/handlers"
+	"ocr-service/handlers"
 )
 
 func main() {

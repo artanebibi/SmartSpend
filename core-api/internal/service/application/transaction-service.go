@@ -9,7 +9,7 @@ import (
 )
 
 type IApplicationTransactionService interface {
-	FindAll(userId string) []dto.TransactionDto
+	FindAll(userId string, from time.Time, to time.Time) []dto.TransactionDto
 	FindById(id int64, userId string) (*dto.TransactionDto, error)
 	Save(transactionDto *dto.TransactionDto) error
 	CreateOrUpdate(transactionDto *dto.TransactionDto, userId string) (error, string)
@@ -48,8 +48,8 @@ func mapToModel(dto *dto.TransactionDto) model.Transaction {
 	}
 }
 
-func (s *ApplicationTransactionService) FindAll(userId string) []dto.TransactionDto {
-	transactions := s.transactionRepository.FindAll(userId)
+func (s *ApplicationTransactionService) FindAll(userId string, from time.Time, to time.Time) []dto.TransactionDto {
+	transactions := s.transactionRepository.FindAll(userId, from, to)
 	result := make([]dto.TransactionDto, len(transactions))
 	for i, tx := range transactions {
 		result[i] = mapToDto(tx)
