@@ -183,7 +183,8 @@ func performOCRWithConfig(img image.Image, language string, config map[string]st
 	client.SetLanguage("mkd")
 	client.SetPageSegMode(gosseract.PSM_SINGLE_BLOCK)
 	client.SetVariable("tessedit_char_whitelist",
-		"АБВГДЕЖЗИЈКЛЉМНЊОПРСТЌУФХЦЧЏШабвгдежзијклљмнњfor key, value := range config {
+		"АБВГДЕЖЗИЈКЛЉМНЊОПРСТЌУФХЦЧЏШабвгдежзијклљмнњопрстќуфхцчџш0123456789.,:/-%")
+	for key, value := range config {
 		client.SetVariable(gosseract.SettableVariable(key), value)
 	}
 
