@@ -4,6 +4,7 @@ go 1.24
 
 require (
 	github.com/disintegration/imaging v1.6.2
+	github.com/jdeng/goheif v0.0.0-20250911003654-7dc867c5b886
 	github.com/otiai10/gosseract/v2 v2.4.1
 )
 

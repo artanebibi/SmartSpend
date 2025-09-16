@@ -124,7 +124,10 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	statistics := r.Group(statisticsBasePath, middleware.AuthMiddleware())
 	{
-		statistics.GET("/pie", s.Pie)
+		statistics.GET("/pie", s.Pie)                                   // sum of money spent (grouped by categories) - includes categories user has used
+		statistics.GET("/monthly", s.Monthly)                           // sum of money spent per-month (all categories) - includes only months user has made transactions on
+		statistics.GET("/total-spent", s.TotalSpentOnExpensesAndIncome) // sum of money used on expenses and income alone
+		statistics.GET("/average", s.Average)                           // average price spent for expense and added for incomes
 	}
 	return r
 }

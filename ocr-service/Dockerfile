@@ -14,8 +14,9 @@ RUN go mod download
 
 COPY . .
 
-# Build statically linked binary
-RUN CGO_ENABLED=1 GOOS=linux go build -o main ./api
+ENV CGO_ENABLED=1
+ENV CGO_LDFLAGS="-ldl"
+RUN GOOS=linux go build -o main ./api
 
 # Run
 FROM debian:bullseye-slim
