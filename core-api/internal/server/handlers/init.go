@@ -29,6 +29,7 @@ var (
 	categoryService               domain.ICategoryService                    = domain.NewCategoryService(categoryRepository)
 	statisticsRepository          repository.IStatisticsRepository           = repository.NewStatisticsRepository(database)
 	statisticsService             domain.IStatisticsService                  = domain.NewStatisticsService(statisticsRepository)
+	geminiService                 domain.IGeminiService                      = domain.NewGeminiService()
 )
 
 func parseFlexibleTime(timeStr string) (time.Time, error) {

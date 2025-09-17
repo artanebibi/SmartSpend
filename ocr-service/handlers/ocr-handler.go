@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/disintegration/imaging"
 	"github.com/jdeng/goheif"
@@ -122,7 +123,7 @@ func performOCRHighContrast(img image.Image) OCRResult {
 func performOCRDilated(img image.Image) OCRResult {
 	grayscale := imaging.Grayscale(img)
 	contrasted := imaging.AdjustContrast(grayscale, 15)
-	dilated := applyDilation(contrasted, 1)
+	dilated := applyDilationParallel(contrasted, 1)
 
 	text := performOCRWithConfig(dilated, "mkd", map[string]string{})
 
@@ -248,6 +249,54 @@ func applyDilation(img image.Image, radius int) image.Image {
 		}
 	}
 
+	return result
+}
+
+func applyDilationParallel(img image.Image, radius int) image.Image {
+	bounds := img.Bounds()
+	result := image.NewGray(bounds)
+
+	numWorkers := 4
+
+	wg := &sync.WaitGroup{}
+	wg.Add(numWorkers)
+
+	stripHeight := bounds.Dy() / numWorkers
+	if stripHeight < 1 {
+		stripHeight = 1
+	}
+
+	for i := 0; i < numWorkers; i++ {
+		go func(workerID int) {
+			defer wg.Done()
+			startY := bounds.Min.Y + workerID*stripHeight
+			endY := startY + stripHeight
+			if workerID == numWorkers-1 {
+				endY = bounds.Max.Y
+			}
+
+			for y := startY; y < endY; y++ {
+				for x := bounds.Min.X; x < bounds.Max.X; x++ {
+					maxValue := uint8(0)
+
+					for dy := -radius; dy <= radius; dy++ {
+						for dx := -radius; dx <= radius; dx++ {
+							nx, ny := x+dx, y+dy
+							if nx >= bounds.Min.X && nx < bounds.Max.X && ny >= bounds.Min.Y && ny < bounds.Max.Y {
+								grayColor := color.GrayModel.Convert(img.At(nx, ny)).(color.Gray)
+								if grayColor.Y > maxValue {
+									maxValue = grayColor.Y
+								}
+							}
+						}
+					}
+					result.SetGray(x, y, color.Gray{Y: maxValue})
+				}
+			}
+		}(i)
+	}
+
+	wg.Wait()
 	return result
 }
 

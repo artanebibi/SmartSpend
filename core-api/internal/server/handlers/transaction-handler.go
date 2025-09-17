@@ -2,6 +2,11 @@ package handlers
 
 import (
 	"SmartSpend/internal/domain/dto"
+	"bytes"
+	"encoding/base64"
+	"fmt"
+	"image"
+	"image/jpeg"
 	"io"
 	"log"
 	"net/http"
@@ -132,22 +137,49 @@ func (s *Server) DeleteTransaction(c *gin.Context) {
 	return
 }
 
-func (s *Server) SaveFromReceipt(c *gin.Context) {
-	resp, err := http.Post("http://localhost:5000/ocr", c.Request.Header.Get("Content-Type"), c.Request.Body)
-	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
-		return
+func imageToBase64(img image.Image) (string, error) {
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, img, nil); err != nil {
+		return "", err
 	}
-	defer resp.Body.Close()
+	return base64.StdEncoding.EncodeToString(buf.Bytes()), nil
+}
 
-	body, err := io.ReadAll(resp.Body)
+func (s *Server) SaveFromReceipt(c *gin.Context) {
+	_, userId := getUserFromDatabase(c)
+
+	file, _, err := c.Request.FormFile("image")
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to get image file"})
 		return
 	}
-	log.Println(string(body))
-	c.JSON(200, gin.H{
-		"response from ocr": string(body),
-	})
-	return
+	defer file.Close()
+
+	var imgBuffer bytes.Buffer
+	teeReader := io.TeeReader(file, &imgBuffer)
+
+	img, _, err := image.Decode(teeReader)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to decode image"})
+		return
+	}
+
+	base64Image, err := imageToBase64(img)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to encode image to Base64"})
+		return
+	}
+
+	tx, err := geminiService.SendToGemini("", base64Image)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Errorf("Gemini service error: %w", err).Error()})
+		return
+	}
+
+	tx.OwnerId = userId
+	tx.DateMade = time.Now()
+
+	log.Println("Gemini Transaction:", tx)
+
+	c.JSON(http.StatusOK, tx)
 }
