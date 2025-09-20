@@ -16,20 +16,25 @@ import (
 )
 
 var (
-	database                      db.Service                                 = db.New()
-	userRepository                repository.IUserRepository                 = repository.NewUserRepository(database)
-	userService                   domain.IUserService                        = domain.NewUserService(userRepository)
+	database db.Service = db.New()
+
+	userRepository        repository.IUserRepository        = repository.NewUserRepository(database)
+	transactionRepository repository.ITransactionRepository = repository.NewTransactionRepository(database)
+	categoryRepository    repository.ICategoryRepository    = repository.NewCategoryRepository(database)
+	statisticsRepository  repository.IStatisticsRepository  = repository.NewStatisticsRepository(database)
+	savingRepository      repository.ISavingRepository      = repository.NewSavingRepository(database)
+
+	userService        domain.IUserService        = domain.NewUserService(userRepository)
+	jwtService         domain.IJWTService         = domain.NewJWTService()
+	tokenService       domain.ITokenService       = domain.NewTokenService()
+	transactionService domain.ITransactionService = domain.NewTransactionService(transactionRepository)
+	categoryService    domain.ICategoryService    = domain.NewCategoryService(categoryRepository)
+	statisticsService  domain.IStatisticsService  = domain.NewStatisticsService(statisticsRepository)
+	geminiService      domain.IGeminiService      = domain.NewGeminiService()
+
 	applicationUserService        application.IUserAppService                = application.NewUserAppService(userService)
-	jwtService                    domain.IJWTService                         = domain.NewJWTService()
-	tokenService                  domain.ITokenService                       = domain.NewTokenService()
-	transactionRepository         repository.ITransactionRepository          = repository.NewTransactionRepository(database)
-	transactionService            domain.ITransactionService                 = domain.NewTransactionService(transactionRepository)
 	applicationTransactionService application.IApplicationTransactionService = application.NewApplicationTransactionService(transactionRepository)
-	categoryRepository            repository.ICategoryRepository             = repository.NewCategoryRepository(database)
-	categoryService               domain.ICategoryService                    = domain.NewCategoryService(categoryRepository)
-	statisticsRepository          repository.IStatisticsRepository           = repository.NewStatisticsRepository(database)
-	statisticsService             domain.IStatisticsService                  = domain.NewStatisticsService(statisticsRepository)
-	geminiService                 domain.IGeminiService                      = domain.NewGeminiService()
+	applicationSavingService      application.IApplicationSavingService      = application.NewApplicationSavingService(savingRepository)
 )
 
 func parseFlexibleTime(timeStr string) (time.Time, error) {
@@ -71,6 +76,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	categoryBasePath := "/api/category"
 	currencyBasePath := "/api/currency"
 	statisticsBasePath := "/api/statistics"
+	savingsBasePath := "/api/saving"
 
 	r.GET("/health", s.healthHandler)
 
@@ -130,5 +136,15 @@ func (s *Server) RegisterRoutes() http.Handler {
 		statistics.GET("/total-spent", s.TotalSpentOnExpensesAndIncome) // sum of money used on expenses and income alone
 		statistics.GET("/average", s.Average)                           // average price spent for expense and added for incomes
 	}
+
+	saving := r.Group(savingsBasePath, middleware.AuthMiddleware())
+	{
+		saving.GET("", s.GetAllSavings)
+		saving.GET("/:id", s.GetSavingByID)
+		saving.POST("", s.SaveSaving)
+		saving.PATCH("/:id", s.UpdateSaving)
+		saving.DELETE("/:id", s.DeleteTransaction)
+	}
+
 	return r
 }
